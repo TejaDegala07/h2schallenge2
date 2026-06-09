@@ -1,173 +1,181 @@
 "use strict";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PURE CALCULATION FUNCTION — testable with Jest, zero DOM dependencies
+// PURE MATH ENGINE — zero DOM dependencies, fully unit-testable
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Calculates total CO₂ emissions for a commute.
+ * Calculates CO₂ emissions for a single commute leg.
  *
- * @param {number} distance    - Distance travelled (km). Must be >= 0.
- * @param {number} coefficient - Emission factor (kg CO₂ per km). Must be >= 0.
- * @returns {number|null}      - Rounded emission in kg, or null for invalid input.
+ * @param {number} distance    - Distance in km. Must be a finite number >= 0.
+ * @param {number} coefficient - Emission factor kg CO₂/km. Must be a finite number >= 0.
+ * @returns {number|null}      - Result rounded to 2 dp, or null for any invalid input.
  */
 function calculateEmissions(distance, coefficient) {
-  // Type guard — rejects strings, null, undefined, objects, arrays
+  // Structural type guard — rejects strings, null, undefined, objects, booleans
   if (typeof distance !== "number" || typeof coefficient !== "number") {
     return null;
   }
-  // Reject NaN, Infinity, or negative values
+  // Reject NaN and Infinity (isNaN catches NaN; !isFinite catches ±Infinity)
   if (isNaN(distance) || !isFinite(distance) || distance < 0) {
     return null;
   }
   if (isNaN(coefficient) || !isFinite(coefficient) || coefficient < 0) {
     return null;
   }
+  // Multiply then round symmetrically to 2 decimal places
   return Math.round(distance * coefficient * 100) / 100;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXPORT — allows Jest to require this module without breaking the browser
+// CONDITIONAL EXPORT — safe for both Node (Jest) and browser environments
 // ─────────────────────────────────────────────────────────────────────────────
 if (typeof module !== "undefined") {
   module.exports = { calculateEmissions };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DOM INTERACTION — only executes in a browser context
+// DOM CONTROLLER — executes only in a browser context
 // ─────────────────────────────────────────────────────────────────────────────
-if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", function () {
-  "use strict";
+if (typeof document !== "undefined") {
+  document.addEventListener("DOMContentLoaded", function () {
+    "use strict";
 
-  let selectedCoeff = null;
-  let selectedType  = null;
+    // ── State ──────────────────────────────────────────────────────────────────
+    let selectedCoeff = null;
+    let selectedType  = null;
 
-  const form          = document.getElementById("footprint-form");
-  const transportBtns = document.querySelectorAll(".transport-btn");
-  const distanceInput = document.getElementById("distance-input");
-  const resultBox     = document.getElementById("result-box");
-  const emissionsOut  = document.getElementById("emissions-output");
-  const insightsList  = document.getElementById("insights-list");
-  const announcer     = document.getElementById("sr-announcer");
-  const transportErr  = document.getElementById("transport-error");
-  const distanceErr   = document.getElementById("distance-error");
+    // ── Cached DOM references (single query per element) ───────────────────────
+    const form          = document.getElementById("footprint-form");
+    const transportBtns = document.querySelectorAll(".transport-btn");
+    const distanceInput = document.getElementById("distance-input");
+    const resultBox     = document.getElementById("result-box");
+    const emissionsOut  = document.getElementById("emissions-output");
+    const insightsList  = document.getElementById("insights-list");
+    const announcer     = document.getElementById("sr-announcer");
+    const transportErr  = document.getElementById("transport-error");
+    const distanceErr   = document.getElementById("distance-error");
 
-  // ── Transport button selection ──────────────────────────────────────────────
-  transportBtns.forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      // Reset all aria-checked states
-      transportBtns.forEach(function (b) {
-        b.setAttribute("aria-checked", "false");
-        b.classList.remove("border-emerald-500", "bg-emerald-900/30", "text-emerald-400");
-        b.classList.add("border-slate-600", "bg-slate-900");
+    // ── Transport radio group ──────────────────────────────────────────────────
+    transportBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        // Reset all peers
+        transportBtns.forEach(function (b) {
+          b.setAttribute("aria-checked", "false");
+          b.classList.remove("border-emerald-500", "bg-emerald-900/30", "text-emerald-400");
+          b.classList.add("border-slate-600", "bg-slate-900");
+        });
+
+        // Activate selected
+        btn.setAttribute("aria-checked", "true");
+        btn.classList.remove("border-slate-600", "bg-slate-900");
+        btn.classList.add("border-emerald-500", "bg-emerald-900/30", "text-emerald-400");
+
+        selectedCoeff = parseFloat(btn.dataset.coeff);
+        selectedType  = btn.dataset.type;
+        transportErr.classList.add("hidden");
       });
 
-      // Mark selected button
-      btn.setAttribute("aria-checked", "true");
-      btn.classList.remove("border-slate-600", "bg-slate-900");
-      btn.classList.add("border-emerald-500", "bg-emerald-900/30", "text-emerald-400");
-
-      selectedCoeff = parseFloat(btn.dataset.coeff);
-      selectedType  = btn.dataset.type;
-      transportErr.classList.add("hidden");
+      // WCAG 2.1 SC 2.1.1 — Space and Enter must activate radio buttons
+      btn.addEventListener("keydown", function (e) {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          btn.click();
+        }
+      });
     });
 
-    // WCAG 2.1 SC 2.1.1 — keyboard activation of radio buttons
-    btn.addEventListener("keydown", function (e) {
-      if (e.key === " " || e.key === "Enter") {
-        e.preventDefault();
-        btn.click();
+    // ── Form submission ────────────────────────────────────────────────────────
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      let valid = true;
+
+      // Validate transport selection
+      if (selectedCoeff === null) {
+        transportErr.classList.remove("hidden");
+        valid = false;
+      } else {
+        transportErr.classList.add("hidden");
       }
-    });
-  });
 
-  // ── Form submission ─────────────────────────────────────────────────────────
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
+      // Validate distance field
+      const rawDistance = distanceInput.value.trim();
+      const distance    = parseFloat(rawDistance);
 
-    let valid = true;
+      if (rawDistance === "" || isNaN(distance) || distance < 0) {
+        distanceErr.classList.remove("hidden");
+        distanceInput.setAttribute("aria-invalid", "true");
+        valid = false;
+      } else {
+        distanceErr.classList.add("hidden");
+        distanceInput.setAttribute("aria-invalid", "false");
+      }
 
-    // Validate transport selection
-    if (selectedCoeff === null) {
-      transportErr.classList.remove("hidden");
-      valid = false;
-    } else {
-      transportErr.classList.add("hidden");
-    }
+      if (!valid) return;
 
-    // Validate distance
-    const rawDistance = distanceInput.value.trim();
-    const distance    = parseFloat(rawDistance);
+      // ── Delegate to pure math engine ────────────────────────────────────────
+      const result = calculateEmissions(distance, selectedCoeff);
 
-    if (rawDistance === "" || isNaN(distance) || distance < 0) {
-      distanceErr.classList.remove("hidden");
-      distanceInput.setAttribute("aria-invalid", "true");
-      valid = false;
-    } else {
-      distanceErr.classList.add("hidden");
-      distanceInput.setAttribute("aria-invalid", "false");
-    }
+      if (result === null) {
+        distanceErr.classList.remove("hidden");
+        return;
+      }
 
-    if (!valid) return;
+      // ── Render result — textContent only, zero innerHTML usage ───────────────
+      emissionsOut.textContent = result.toFixed(2);
 
-    // ── Run pure calculation ──────────────────────────────────────────────────
-    const result = calculateEmissions(distance, selectedCoeff);
+      // ── Rebuild insights list — replaceChildren() eliminates the innerHTML
+      //    XSS sink that SAST scanners (Semgrep / CodeQL) flag ──────────────────
+      insightsList.replaceChildren();
+      buildInsights(selectedType, distance).forEach(function (tip) {
+        const li = document.createElement("li");
+        li.textContent = tip;           // textContent: safe against XSS injection
+        insightsList.appendChild(li);
+      });
 
-    if (result === null) {
-      distanceErr.classList.remove("hidden");
-      return;
-    }
+      // ── Reveal results panel ─────────────────────────────────────────────────
+      resultBox.classList.remove("hidden");
 
-    emissionsOut.textContent = result.toFixed(2);
-
-    // ── Build insights ────────────────────────────────────────────────────────
-    // Fix 10: replaceChildren() replaces innerHTML = "" — eliminates the XSS
-    // sink surface that static security scanners (Semgrep / CodeQL) flag.
-    insightsList.replaceChildren();
-    buildInsights(selectedType, distance).forEach(function (tip) {
-      const li = document.createElement("li");
-      li.textContent = tip;
-      insightsList.appendChild(li);
+      // ── Polite screen-reader announcement ───────────────────────────────────
+      announcer.textContent =
+        "Results updated. Your daily carbon footprint is " +
+        result.toFixed(2) +
+        " kilograms of CO2 equivalent.";
     });
 
-    // ── Show results ──────────────────────────────────────────────────────────
-    resultBox.classList.remove("hidden");
+    // ── Insights copy builder ──────────────────────────────────────────────────
+    function buildInsights(type, distance) {
+      const tips = [];
 
-    // ── Announce to screen readers ────────────────────────────────────────────
-    announcer.textContent =
-      "Results updated. Your daily carbon footprint is " +
-      result.toFixed(2) +
-      " kilograms of CO2 equivalent.";
-  });
+      if (type === "car" && distance > 10) {
+        tips.push(
+          "Your daily commute contributes a heavy carbon load. Switching to carpooling or public transport can cut emissions by roughly 60%."
+        );
+        tips.push(
+          "Smooth acceleration and cruise control can save up to 15% on fuel efficiency."
+        );
+      } else if (type === "bus") {
+        tips.push(
+          "Excellent — shared public transport saves approximately 68% more emissions than single-occupancy vehicles daily."
+        );
+        tips.push(
+          "Combining errands into fewer trips reduces total journey frequency further."
+        );
+      } else {
+        tips.push(
+          "Perfect zero-emission profile! Your active transport completely eliminates commute atmospheric impact."
+        );
+        tips.push(
+          "Advocate for green pedestrian and cycling corridors in your urban neighbourhood."
+        );
+      }
 
-  // ── Insights builder ────────────────────────────────────────────────────────
-  function buildInsights(type, distance) {
-    const tips = [];
-    if (type === "car" && distance > 10) {
       tips.push(
-        "Your daily commute contributes a heavy carbon load. Consider switching to carpooling or public transport to cut emissions by roughly 60%."
+        "General tip: Offset your footprint by choosing locally sourced food and eliminating standby power draw with smart home sockets."
       );
-      tips.push(
-        "Smooth acceleration and cruise control techniques can save up to 15% on fuel efficiency."
-      );
-    } else if (type === "bus") {
-      tips.push(
-        "Excellent — shared public transport saves approximately 68% more emissions than single-occupancy vehicles daily."
-      );
-      tips.push(
-        "Combine errands into fewer trips to reduce total journey frequency further."
-      );
-    } else {
-      tips.push(
-        "Perfect zero-emission profile! Your active transport completely eliminates commute atmospheric impact."
-      );
-      tips.push(
-        "Advocate for green pedestrian and cycling corridors in your urban neighbourhood."
-      );
+
+      return tips;
     }
-    tips.push(
-      "General tip: Offset your footprint by choosing locally sourced food and using smart home sockets to eliminate standby power draw."
-    );
-    return tips;
-  }
-});
+  });
+}

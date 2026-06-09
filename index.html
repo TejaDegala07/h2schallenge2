@@ -4,21 +4,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- CSP: permissive for Tailwind CDN inline style injection. object-src and base-uri locked down. -->
+  <meta name="description" content="Calculate your daily carbon footprint and receive personalised reduction strategies — Hack2Skill PromptWars Challenge 3.">
+
+  <!-- CSP: locks down fetch/object/base/form; allows unsafe-inline styles required by Tailwind JIT runtime -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self';">
-  <meta name="description" content="Calculate your daily carbon footprint and receive personalised reduction strategies — Hack2Skill PromptWars Challenge 3.">
+
   <title>EcoAssistant AI — Carbon Footprint Tracker | Hack2Skill</title>
-  <!-- Synchronous load: required so Tailwind styles apply before first paint (no FOUC) -->
+
+  <!-- Preconnect: resolves DNS and opens TCP/TLS to Tailwind CDN before the browser hits the script tag -->
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+
+  <!-- Synchronous load: Tailwind JIT must evaluate the DOM before first paint to apply utility classes.
+       Adding defer/async causes FOUC because JIT scans class attributes at parse time. -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="app.js"></script>
+
   <style>
-    /* WCAG 2.1 AA — visible focus ring for keyboard navigation */
+    /* WCAG 2.1 AA — visible keyboard focus ring */
     :focus-visible {
       outline: 3px solid #3fb950;
       outline-offset: 2px;
     }
-    /* Skip link — visually hidden until focused */
+
+    /* Skip link — visually hidden until focused by keyboard */
     .skip-link {
       position: absolute;
       top: -100%;
@@ -33,27 +41,29 @@
       z-index: 9999;
     }
     .skip-link:focus { top: 1rem; }
-    /* SR-only utility (Tailwind sr-only equivalent, defined here for safety) */
+
+    /* SR-only: hides live-region from visual layout without display:none (which kills AT) */
     .sr-only {
       position: absolute;
       width: 1px; height: 1px;
       padding: 0; margin: -1px;
       overflow: hidden;
-      clip: rect(0,0,0,0);
+      clip: rect(0, 0, 0, 0);
       white-space: nowrap;
       border: 0;
     }
-    /* Smooth reveal for result box */
-    #result-box { transition: opacity 0.3s ease; }
+
+    /* Smooth reveal animation for results panel */
+    #result-box { transition: opacity 0.25s ease; }
   </style>
 </head>
 
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6">
 
-  <!-- Skip navigation for keyboard/screen-reader users -->
+  <!-- Skip navigation for keyboard and screen-reader users -->
   <a class="skip-link" href="#main-content">Skip to main content</a>
 
-  <!-- Live region: announces calculation results to screen readers -->
+  <!-- Polite live region: announces result changes to assistive technology -->
   <div id="sr-announcer"
        role="status"
        aria-live="polite"
@@ -62,9 +72,10 @@
 
   <div class="max-w-xl w-full bg-slate-800 rounded-2xl shadow-xl border border-slate-700 p-8">
 
-    <!-- Fix 3: <header> has implicit role="banner" — explicit role removed -->
+    <!-- <header> carries implicit role="banner" — no explicit role needed -->
     <header>
       <div class="flex items-center gap-3 mb-4">
+        <!-- aria-hidden: decorative emoji, not meaningful content for AT -->
         <span class="text-3xl" aria-hidden="true">🌱</span>
         <div>
           <h1 class="text-2xl font-bold text-emerald-400">EcoAssistant AI</h1>
@@ -78,17 +89,17 @@
       </p>
     </header>
 
-    <!-- Fix 4: <main> has implicit role="main" — explicit role removed -->
+    <!-- <main> carries implicit role="main" — no explicit role needed -->
     <main id="main-content">
 
       <form id="footprint-form" novalidate aria-label="Carbon footprint calculator">
 
-        <!-- Transport Method — radiogroup -->
+        <!-- Transport Method -->
         <section aria-labelledby="transport-legend" class="mb-6">
           <p id="transport-legend" class="text-sm font-semibold text-slate-300 mb-3">
             1. Select your primary commute method today:
           </p>
-          <!-- Fix 5: aria-required is not a valid attribute on role="radiogroup" (ARIA 1.2 spec) — removed -->
+          <!-- aria-required is not a valid ARIA 1.2 attribute for role="radiogroup" — omitted -->
           <div id="transport-selector"
                role="radiogroup"
                aria-labelledby="transport-legend"
@@ -138,21 +149,21 @@
 
         <!-- Distance Input -->
         <section aria-labelledby="distance-label" class="mb-6">
+          <!-- <label for="distance-input"> is the sole authoritative accessible name for this input.
+               No aria-label is added — dual accessible names cause aria-label to silently override
+               the visible label text for screen readers (aria-label wins per the ARIA spec). -->
           <label id="distance-label" for="distance-input"
                  class="block text-sm font-semibold text-slate-300 mb-2">
             2. Approximate daily distance traveled (in kilometers):
           </label>
-          <!-- Fix 6: aria-label removed — the explicit <label for="distance-input"> is the
-               correct and only accessible name needed. Having both causes aria-label to silently
-               override the visible label text for screen readers (aria-label wins per ARIA spec). -->
           <input type="number"
                  id="distance-input"
                  name="distance"
                  placeholder="e.g. 15"
                  min="0"
                  step="0.1"
-                 aria-describedby="distance-error"
                  aria-required="true"
+                 aria-describedby="distance-error"
                  class="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 px-4 text-sm text-slate-100 focus:border-emerald-500 transition-colors">
           <p id="distance-error"
              role="alert"
@@ -174,8 +185,8 @@
 
       </form>
 
-      <!-- Fix 7: <section> already carries implicit role="region" when it has an accessible name.
-           Explicit role="region" is redundant and flagged by axe-core — removed. -->
+      <!-- Results: <section> with aria-label carries implicit role="region" — no explicit role needed.
+           aria-live="polite" ensures screen readers announce content updates. -->
       <section id="result-box"
                aria-label="Carbon footprint results"
                aria-live="polite"
@@ -194,7 +205,7 @@
           </p>
         </div>
 
-        <!-- Fix 8: Changed <div role="region"> to semantic <section> — native element over ARIA override -->
+        <!-- Native <section> replaces <div role="region"> — semantic element over ARIA override -->
         <section aria-labelledby="insights-heading">
           <p id="insights-heading"
              class="text-xs font-bold uppercase tracking-widest text-amber-400 mb-2">
@@ -210,7 +221,7 @@
 
     </main>
 
-    <!-- Fix 9: <footer> has implicit role="contentinfo" — explicit role removed -->
+    <!-- <footer> carries implicit role="contentinfo" — no explicit role needed -->
     <footer class="mt-8 pt-6 border-t border-slate-700 flex justify-between items-center text-xs text-slate-400 flex-wrap gap-2">
       <span>
         Branch status:
@@ -226,6 +237,9 @@
     </footer>
 
   </div>
+
+  <!-- defer: non-blocking load after HTML is parsed; placed at end of body for maximum efficiency -->
+  <script defer src="app.js"></script>
 
 </body>
 </html>
