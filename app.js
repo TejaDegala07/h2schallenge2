@@ -1,18 +1,18 @@
 "use strict";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PURE CALCULATION FUNCTION  — testable with Jest, zero DOM dependencies
+// PURE CALCULATION FUNCTION — testable with Jest, zero DOM dependencies
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Calculates total CO₂ emissions for a commute.
  *
- * @param {number} distance   - Distance travelled (km). Must be >= 0.
+ * @param {number} distance    - Distance travelled (km). Must be >= 0.
  * @param {number} coefficient - Emission factor (kg CO₂ per km). Must be >= 0.
- * @returns {number|null}     - Rounded emission in kg, or null for invalid input.
+ * @returns {number|null}      - Rounded emission in kg, or null for invalid input.
  */
 function calculateEmissions(distance, coefficient) {
-  // Type guard — reject non-numbers
+  // Type guard — rejects strings, null, undefined, objects, arrays
   if (typeof distance !== "number" || typeof coefficient !== "number") {
     return null;
   }
@@ -27,14 +27,14 @@ function calculateEmissions(distance, coefficient) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXPORT — allows Jest to require this file without breaking the browser
+// EXPORT — allows Jest to require this module without breaking the browser
 // ─────────────────────────────────────────────────────────────────────────────
 if (typeof module !== "undefined") {
   module.exports = { calculateEmissions };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DOM INTERACTION — only runs in a browser context
+// DOM INTERACTION — only executes in a browser context
 // ─────────────────────────────────────────────────────────────────────────────
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", function () {
   "use strict";
@@ -55,14 +55,14 @@ if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded
   // ── Transport button selection ──────────────────────────────────────────────
   transportBtns.forEach(function (btn) {
     btn.addEventListener("click", function () {
-      // Update aria-checked on all buttons
+      // Reset all aria-checked states
       transportBtns.forEach(function (b) {
         b.setAttribute("aria-checked", "false");
         b.classList.remove("border-emerald-500", "bg-emerald-900/30", "text-emerald-400");
         b.classList.add("border-slate-600", "bg-slate-900");
       });
 
-      // Mark this button as selected
+      // Mark selected button
       btn.setAttribute("aria-checked", "true");
       btn.classList.remove("border-slate-600", "bg-slate-900");
       btn.classList.add("border-emerald-500", "bg-emerald-900/30", "text-emerald-400");
@@ -72,7 +72,7 @@ if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded
       transportErr.classList.add("hidden");
     });
 
-    // Keyboard: Space/Enter activates radio button
+    // WCAG 2.1 SC 2.1.1 — keyboard activation of radio buttons
     btn.addEventListener("keydown", function (e) {
       if (e.key === " " || e.key === "Enter") {
         e.preventDefault();
@@ -121,7 +121,9 @@ if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded
     emissionsOut.textContent = result.toFixed(2);
 
     // ── Build insights ────────────────────────────────────────────────────────
-    insightsList.innerHTML = "";
+    // Fix 10: replaceChildren() replaces innerHTML = "" — eliminates the XSS
+    // sink surface that static security scanners (Semgrep / CodeQL) flag.
+    insightsList.replaceChildren();
     buildInsights(selectedType, distance).forEach(function (tip) {
       const li = document.createElement("li");
       li.textContent = tip;
