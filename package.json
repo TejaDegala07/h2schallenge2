@@ -1,0 +1,31 @@
+{
+  "name": "carbon-footprint-tracker",
+  "version": "1.0.0",
+  "description": "Carbon Footprint Tracker — Hack2Skill PromptWars Challenge 3",
+  "main": "index.js",
+  "homepage": "https://TejaDegala07.github.io/h2schallenge2",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "predeploy": "npm install gh-pages --no-save",
+    "deploy": "npx gh-pages -d ."
+  },
+  "keywords": [
+    "carbon",
+    "footprint",
+    "emissions",
+    "sustainability"
+  ],
+  "author": "Dynamic Assistant",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^30.4.1",
+    "tailwindcss": "^4.3.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "verbose": true
+  }
+}
